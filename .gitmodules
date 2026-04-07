@@ -1,0 +1,3 @@
+[submodule ".claude/skills/holochain"]
+	path = .claude/skills/holochain
+	url = https://github.com/Soushi888/holochain-agent-skill
