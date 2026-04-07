@@ -6,8 +6,9 @@
 |-------|------|--------|
 | 1.1 — flake.nix → holonix main-0.6 | ✅ Complété | `ad234db` |
 | 1.2 — fixture hdk/hdi 0.6/0.7 | ✅ Complété | `d0091a8` |
-| 1.3 — protocole wire Python | 🔲 À faire | — |
-| 2 — Wrapper PyO3/Maturin | 🔲 À faire | — |
+| 1.3 — protocole wire Python | ✅ Complété | — |
+| 2.1-2.4 — Wrapper PyO3/Maturin (scaffold) | ✅ Complété | — |
+| 2.5 — pyproject.toml → Maturin backend | 🔲 À faire | — |
 | 3 — API Python 0.6 | 🔲 À faire | — |
 
 ## État actuel
