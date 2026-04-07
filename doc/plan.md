@@ -1,5 +1,15 @@
 # Plan : Migration Holochain 0.6/0.7 + Wrapper Python/Rust
 
+## Statut
+
+| Phase | État | Commit |
+|-------|------|--------|
+| 1.1 — flake.nix → holonix main-0.6 | ✅ Complété | `ad234db` |
+| 1.2 — fixture hdk/hdi 0.6/0.7 | ✅ Complété | `d0091a8` |
+| 1.3 — protocole wire Python | 🔲 À faire | — |
+| 2 — Wrapper PyO3/Maturin | 🔲 À faire | — |
+| 3 — API Python 0.6 | 🔲 À faire | — |
+
 ## État actuel
 
 - Client Python pur (WebSocket + msgpack) ciblant **Holochain 0.2.6**
@@ -14,7 +24,22 @@ canonique `holochain_client`, plutôt que de maintenir un client Python pur.
 
 ---
 
-## Phase 1 — Mise à jour de l'environnement Holochain
+## Phase 1 — Mise à jour de l'environnement Holochain ✅
+
+> **Complété** — voir commit `d0091a8` pour l'ensemble des corrections.
+
+### Breaking changes découverts (hdk 0.2 → 0.6)
+
+Ces points ne sont pas documentés dans le changelog officiel et ont nécessité du débogage :
+
+- **getrandom 0.3** — `hdi 0.7` / `hdk 0.6` utilisent directement `getrandom 0.3.x` qui ne supporte plus `wasm32-unknown-unknown` par défaut. Fix : `RUSTFLAGS='--cfg getrandom_backend="custom"'`. Note : `RUSTFLAGS=''` dans le script npm écrase `.cargo/config.toml`, il faut mettre le flag directement dans `package.json`.
+- **`holochain_serialized_bytes`** — Le derive macro `#[hdk_entry_helper]` génère du code qui référence `holochain_serialized_bytes` par chemin direct. Il doit être une dépendance directe du crate integrity (pas seulement transitive via hdi).
+- **`#[hdk_entry_defs]`** → **`#[hdk_entry_types]`** — Renommé. `EntryTypes` et `LinkTypes` ont besoin de `#[derive(Serialize, Deserialize)]` explicites (requis par le coordinator pour les signaux).
+- **`OpUpdate::Entry`** — Plus de champs `original_action` / `original_app_entry`. Seulement `{ app_entry, action }`.
+- **`OpDelete`** — N'est plus un enum avec un variant `Entry`. C'est maintenant un struct `{ action: Delete }` sans information sur l'entrée originale.
+- **`get_links`** — Signature changée de `(base, type, None)` vers `(LinkQuery::try_new(base, type)?, GetStrategy::Network)`.
+- **`delete_link`** — Requiert maintenant `GetOptions::default()` comme second argument.
+- **Manifest version** — `manifest_version: "1"` → `"0"` pour `hc app pack` de holochain 0.6.1-rc.x.
 
 ### 1.1 Mettre à jour `flake.nix`
 
