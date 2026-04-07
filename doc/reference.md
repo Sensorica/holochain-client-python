@@ -5,7 +5,7 @@ https://developer.holochain.org/concepts/2_application_architecture/
 # working project
 
 https://github.com/holochain/holochain-client-js
-
+https://github.com/holochain/holochain-client-rust
 
 # Agent skill
 
@@ -24,6 +24,8 @@ The only thing I can think of that we'd want to be careful about is not forcing 
 PyO3 bindings over the Rust client
 
 Since holochain_client (Rust) is the canonical implementation, wrapping it with PyO3/Maturin would give you a Python client that stays in sync automatically. This is architecturally elegant and fits your compiled stack philosophy. The tradeoff: harder to debug, heavier build dependency (needs Rust toolchain).
+
+Wrap the project https://github.com/holochain/holochain-client-rust
 
 # Goal
 

@@ -116,7 +116,9 @@ python-bindings = ["pyo3"]
 
 [dependencies]
 pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
-holochain_client = { git = "https://github.com/holochain/holochain", tag = "holochain-0.6.x" }
+holochain_client = { git = "https://github.com/holochain/holochain-client-rust" }
+# ou depuis crates.io (publié sous 0.7.0-rc.0) :
+# holochain_client = "0.7.0-rc.0"
 tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
