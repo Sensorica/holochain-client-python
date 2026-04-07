@@ -9,7 +9,9 @@
 | 1.3 — protocole wire Python | ✅ Complété | — |
 | 2.1-2.4 — Wrapper PyO3/Maturin (scaffold) | ✅ Complété | — |
 | 2.5 — pyproject.toml → Maturin backend | 🔲 À faire | — |
-| 3 — API Python 0.6 | 🔲 À faire | — |
+| 3.1 — Méthodes admin manquantes | ✅ Complété | — |
+| 3.2 — Auth token AppWebsocket | ✅ Complété | — |
+| 3.3 — Signals | ✅ Complété | — |
 
 ## État actuel
 

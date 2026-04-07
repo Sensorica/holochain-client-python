@@ -172,6 +172,14 @@ class AdminWebsocket:
     # Authentication tokens
     # ------------------------------------------------------------------
 
+    async def revoke_app_authentication_token(
+        self,
+        token: AppAuthenticationToken,
+        timeout: float | None = None,
+    ) -> None:
+        """Revoke a previously issued app authentication token."""
+        await self._request("revoke_app_authentication_token", token, timeout)
+
     async def issue_app_authentication_token(
         self,
         installed_app_id: InstalledAppId,
@@ -193,6 +201,28 @@ class AdminWebsocket:
             timeout,
         )
         return resp["value"]
+
+    # ------------------------------------------------------------------
+    # Agent key management
+    # ------------------------------------------------------------------
+
+    async def revoke_agent_key(
+        self,
+        installed_app_id: InstalledAppId,
+        agent_key: AgentPubKey,
+        timeout: float | None = None,
+    ) -> list[tuple[CellId, str]]:
+        """Revoke an agent key from an app.
+
+        Returns a list of (cell_id, error_message) pairs for any cells
+        that could not be revoked.
+        """
+        resp = await self._request(
+            "revoke_agent_key",
+            {"app_id": installed_app_id, "agent_key": agent_key},
+            timeout,
+        )
+        return [(tuple(pair[0]), pair[1]) for pair in resp["value"]]
 
     # ------------------------------------------------------------------
     # Signing credentials
@@ -264,6 +294,28 @@ class AdminWebsocket:
         )
 
     # ------------------------------------------------------------------
+    # Agent info (P2P peer discovery)
+    # ------------------------------------------------------------------
+
+    async def agent_info(
+        self,
+        cell_id: CellId | None = None,
+        timeout: float | None = None,
+    ) -> list[str]:
+        """Return agent info for the given cell, or all cells if None."""
+        payload = {"cell_id": list(cell_id)} if cell_id else None
+        resp = await self._request("agent_info", payload, timeout)
+        return resp["value"]
+
+    async def add_agent_info(
+        self,
+        agent_infos: list[str],
+        timeout: float | None = None,
+    ) -> None:
+        """Add pre-fetched agent infos to the peer store."""
+        await self._request("add_agent_info", agent_infos, timeout)
+
+    # ------------------------------------------------------------------
     # Diagnostics
     # ------------------------------------------------------------------
 
@@ -274,14 +326,64 @@ class AdminWebsocket:
         value = resp["value"]
         return json.loads(value) if isinstance(value, str) else value
 
+    async def dump_conductor_state(self, timeout: float | None = None) -> dict[str, Any]:
+        """Return the full conductor state as a dict."""
+        resp = await self._request("dump_conductor_state", None, timeout)
+        value = resp["value"]
+        return json.loads(value) if isinstance(value, str) else value
+
+    async def dump_full_state(
+        self,
+        cell_id: CellId,
+        dht_ops_cursor: int | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        """Return the full DHT state for a cell (large response)."""
+        payload: dict[str, Any] = {"cell_id": list(cell_id)}
+        if dht_ops_cursor is not None:
+            payload["dht_ops_cursor"] = dht_ops_cursor
+        resp = await self._request("dump_full_state", payload, timeout)
+        return resp["value"]
+
     async def dump_network_stats(self, timeout: float | None = None) -> dict[str, Any]:
         resp = await self._request("dump_network_stats", None, timeout)
         value = resp["value"]
         return json.loads(value) if isinstance(value, str) else value
 
+    async def dump_network_metrics(
+        self,
+        dna_hash: DnaHash | None = None,
+        include_dht_summary: bool = False,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        """Return network metrics, optionally filtered to a single DNA."""
+        payload: dict[str, Any] = {"include_dht_summary": include_dht_summary}
+        if dna_hash is not None:
+            payload["dna_hash"] = dna_hash
+        resp = await self._request("dump_network_metrics", payload, timeout)
+        return resp["value"]
+
     async def storage_info(self, timeout: float | None = None) -> dict[str, Any]:
         resp = await self._request("storage_info", None, timeout)
         return resp["value"]
+
+    # ------------------------------------------------------------------
+    # Source chain grafting
+    # ------------------------------------------------------------------
+
+    async def graft_records(
+        self,
+        cell_id: CellId,
+        validate: bool,
+        records: list[dict[str, Any]],
+        timeout: float | None = None,
+    ) -> None:
+        """Graft a list of records onto an existing source chain."""
+        await self._request(
+            "graft_records_onto_source_chain",
+            {"cell_id": list(cell_id), "validate": validate, "records": records},
+            timeout,
+        )
 
     # ------------------------------------------------------------------
     # Admin interfaces

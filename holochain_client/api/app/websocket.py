@@ -212,6 +212,15 @@ class AppWebsocket:
         await self._request("enable_app", None, timeout)
 
     # ------------------------------------------------------------------
+    # Host functions
+    # ------------------------------------------------------------------
+
+    async def list_wasm_host_functions(self, timeout: float | None = None) -> list[str]:
+        """Return the list of host functions available in the conductor."""
+        resp = await self._request("list_wasm_host_functions", None, timeout)
+        return resp["value"]
+
+    # ------------------------------------------------------------------
     # Countersigning
     # ------------------------------------------------------------------
 
