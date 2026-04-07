@@ -28,3 +28,7 @@ Since holochain_client (Rust) is the canonical implementation, wrapping it with 
 # Goal
 
 Support Holochain 0.6 and 0.7
+
+# Plan
+
+See [plan.md](plan.md) for the detailed migration and wrapper implementation plan.
