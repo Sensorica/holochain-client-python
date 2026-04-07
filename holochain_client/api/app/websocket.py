@@ -135,6 +135,7 @@ class AppWebsocket:
         """Call a zome using a raw request dict. Handles role_name resolution and signing."""
         if "role_name" in request and "cell_id" not in request:
             app_info = self._cached_app_info or await self.app_info()
+            request = {**request}  # shallow copy to avoid mutating caller's dict
             request["cell_id"] = self._get_cell_id_from_role_name(
                 request.pop("role_name"), app_info
             )
