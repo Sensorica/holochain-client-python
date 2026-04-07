@@ -19,13 +19,9 @@ use holochain_client::{
     InstallAppPayload, IssueAppAuthenticationTokenPayload, ZomeCallTarget,
 };
 
-// Types re-exported from holochain_client (sourced from holochain_zome_types /
-// holochain_types / holo_hash transitively).
 #[cfg(feature = "python-bindings")]
 use holochain_client::{AgentPubKey, CellId, ExternIO};
 
-// DnaHash is not re-exported by holochain_client — import it from holo_hash
-// directly (it is a transitive dependency of holochain_client).
 #[cfg(feature = "python-bindings")]
 use holo_hash::DnaHash;
 
@@ -39,17 +35,23 @@ fn py_err(e: impl std::fmt::Display) -> PyErr {
 }
 
 // ---------------------------------------------------------------------------
-// HoloHash byte <-> typed hash conversion helpers
+// HoloHash byte conversion helpers
 // ---------------------------------------------------------------------------
 
 #[cfg(feature = "python-bindings")]
 fn bytes_to_dna(b: Vec<u8>) -> PyResult<DnaHash> {
-    DnaHash::try_from(b).map_err(py_err)
+    if b.len() != 39 {
+        return Err(py_err(format!("DnaHash must be 39 bytes, got {}", b.len())));
+    }
+    Ok(DnaHash::from_raw_39(b))
 }
 
 #[cfg(feature = "python-bindings")]
 fn bytes_to_agent(b: Vec<u8>) -> PyResult<AgentPubKey> {
-    AgentPubKey::try_from(b).map_err(py_err)
+    if b.len() != 39 {
+        return Err(py_err(format!("AgentPubKey must be 39 bytes, got {}", b.len())));
+    }
+    Ok(AgentPubKey::from_raw_39(b))
 }
 
 // ---------------------------------------------------------------------------
@@ -60,15 +62,10 @@ fn bytes_to_agent(b: Vec<u8>) -> PyResult<AgentPubKey> {
 /// `AdminWebsocketPy.authorize_signing_credentials`.
 ///
 /// Exposes `signing_agent_key` (bytes) and `cap_secret` (bytes).
-/// Pass this object to `ClientAgentSignerPy.add_credentials`.
 #[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct SigningCredentialsPy {
-    /// Raw 39-byte signing agent key (AgentPubKey).
     pub signing_agent_key: Vec<u8>,
-    /// 64-byte capability secret.
     pub cap_secret: Vec<u8>,
-    /// Serialised ed25519 signing keypair bytes (32-byte private scalar).
-    pub keypair_bytes: Vec<u8>,
 }
 
 #[cfg(feature = "python-bindings")]
@@ -95,7 +92,7 @@ impl SigningCredentialsPy {
 ///   signer = ClientAgentSignerPy()
 ///   signing_key = admin.authorize_signing_credentials(dna, agent, signer)
 ///   app = AppWebsocketPy("127.0.0.1:9000", token, signer)
-#[cfg_attr(feature = "python-bindings", pyclass(Clone))]
+#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Clone)]
 pub struct ClientAgentSignerPy {
     inner: ClientAgentSigner,
@@ -183,6 +180,7 @@ impl AdminWebsocketPy {
     }
 
     /// Uninstall an app.
+    #[pyo3(signature = (installed_app_id, force=None))]
     fn uninstall_app(&self, installed_app_id: &str, force: Option<bool>) -> PyResult<()> {
         self.rt
             .block_on(
@@ -215,6 +213,7 @@ impl AdminWebsocketPy {
     ///   e.g. `'"Running"'`. Pass `None` to list all apps.
     ///
     /// Returns JSON-serialised `Vec<AppInfo>`.
+    #[pyo3(signature = (status_filter=None))]
     fn list_apps(&self, status_filter: Option<&str>) -> PyResult<String> {
         let filter = status_filter
             .map(|s| serde_json::from_str(s).map_err(py_err))
@@ -235,7 +234,12 @@ impl AdminWebsocketPy {
             .map_err(py_err)?;
         Ok(ids
             .into_iter()
-            .map(|(dna, agent)| (dna.get_raw_39().to_vec(), agent.get_raw_39().to_vec()))
+            .map(|cell_id| {
+                (
+                    cell_id.dna_hash().get_raw_39().to_vec(),
+                    cell_id.agent_pubkey().get_raw_39().to_vec(),
+                )
+            })
             .collect())
     }
 
@@ -257,6 +261,7 @@ impl AdminWebsocketPy {
     ///
     /// `allowed_origins` — `"any"` or a comma-separated list of allowed origins.
     /// Returns the port the interface was bound to.
+    #[pyo3(signature = (port, allowed_origins=None, installed_app_id=None))]
     fn attach_app_interface(
         &self,
         port: u16,
@@ -309,7 +314,7 @@ impl AdminWebsocketPy {
 
     /// Authorize signing credentials for a cell and register them in `signer`.
     ///
-    /// This combines `AdminWebsocket::authorize_signing_credentials` with
+    /// Combines `AdminWebsocket::authorize_signing_credentials` with
     /// `ClientAgentSigner::add_credentials` so the credentials are immediately
     /// usable by `AppWebsocketPy`.
     ///
@@ -325,9 +330,9 @@ impl AdminWebsocketPy {
         cell_id_agent: Vec<u8>,
         signer: &mut ClientAgentSignerPy,
     ) -> PyResult<Vec<u8>> {
-        let dna = bytes_to_dna(cell_id_dna.clone())?;
-        let agent = bytes_to_agent(cell_id_agent.clone())?;
-        let cell_id: CellId = (dna.clone(), agent.clone());
+        let dna = bytes_to_dna(cell_id_dna)?;
+        let agent = bytes_to_agent(cell_id_agent)?;
+        let cell_id = CellId::new(dna, agent);
 
         let creds = self
             .rt
@@ -372,8 +377,7 @@ impl AppWebsocketPy {
     ///
     /// `addr`  — socket address, e.g. `"127.0.0.1:9000"` or `"ws://…"`.
     /// `token` — raw bytes returned by `AdminWebsocketPy.issue_app_auth_token`.
-    /// `signer`— `ClientAgentSignerPy` instance (may be populated with
-    ///           credentials after this call, before `call_zome`).
+    /// `signer`— `ClientAgentSignerPy` instance populated with credentials.
     #[new]
     fn connect(addr: &str, token: Vec<u8>, signer: &ClientAgentSignerPy) -> PyResult<Self> {
         let addr = addr
@@ -382,9 +386,8 @@ impl AppWebsocketPy {
             .trim_end_matches('/');
         let token = AppAuthenticationToken::from(token);
         let rt = tokio::runtime::Runtime::new().map_err(py_err)?;
-        // Clone the signer so that the Arc<RwLock<...>> inside is shared —
-        // any credentials added to the Python signer after this call are
-        // automatically visible to the AppWebsocket.
+        // Clone shares the Arc<RwLock<...>> inside ClientAgentSigner, so
+        // credentials added to `signer` after this call remain visible.
         let dyn_signer: DynAgentSigner = Arc::new(signer.inner.clone());
         let inner = rt
             .block_on(AppWebsocket::connect(addr, token, dyn_signer))
@@ -407,11 +410,11 @@ impl AppWebsocketPy {
     ///
     /// Parameters:
     ///   cell_id_dna   — raw 39-byte DnaHash
-    ///   cell_id_agent — raw 39-byte AgentPubKey (the signing key returned by
+    ///   cell_id_agent — raw 39-byte signing AgentPubKey (from
     ///                   `AdminWebsocketPy.authorize_signing_credentials`)
     ///   zome_name     — name of the coordinator zome
     ///   fn_name       — name of the zome function
-    ///   payload       — msgpack-encoded function argument (use `msgpack.packb`)
+    ///   payload       — msgpack-encoded argument (use `msgpack.packb`)
     ///
     /// Returns msgpack-encoded response bytes (use `msgpack.unpackb`).
     fn call_zome(
@@ -424,7 +427,7 @@ impl AppWebsocketPy {
     ) -> PyResult<Vec<u8>> {
         let dna = bytes_to_dna(cell_id_dna)?;
         let agent = bytes_to_agent(cell_id_agent)?;
-        let cell_id: CellId = (dna, agent);
+        let cell_id = CellId::new(dna, agent);
 
         let result = self
             .rt

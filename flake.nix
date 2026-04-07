@@ -20,6 +20,7 @@
                     pkgs.poetry
                     pkgs.nodejs_20
                     pkgs.maturin
+                    pkgs.uv
                 ];
             };
         };
