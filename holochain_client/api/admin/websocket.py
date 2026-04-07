@@ -307,4 +307,4 @@ class AdminWebsocket:
         self, tag: str, value: Any = None, timeout: float | None = None
     ) -> dict[str, Any]:
         payload = {"type": tag, "value": value}
-        return await self.client.request(payload, timeout or self.default_timeout)
+        return await self.client.request(payload, timeout if timeout is not None else self.default_timeout)
