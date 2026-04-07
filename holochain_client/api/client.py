@@ -134,7 +134,7 @@ class WsClient:
             {"id": req_id, "type": "request", "data": encoded_payload}
         )
 
-        future: asyncio.Future[Any] = asyncio.get_event_loop().create_future()
+        future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
         self._pending[req_id] = future
 
         try:
@@ -182,6 +182,7 @@ class WsClient:
         self._closed = True
         if self._listen_task:
             self._listen_task.cancel()
+            await asyncio.gather(self._listen_task, return_exceptions=True)
         await self._ws.close()
         # Reject all pending
         for req_id, fut in self._pending.items():
