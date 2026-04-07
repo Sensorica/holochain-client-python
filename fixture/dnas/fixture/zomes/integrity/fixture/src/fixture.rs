@@ -13,14 +13,11 @@ pub fn validate_create_fixture(
 pub fn validate_update_fixture(
     _action: Update,
     _fixture: Fixture,
-    _original_action: EntryCreationAction,
-    _original_fixture: Fixture,
 ) -> ExternResult<ValidateCallbackResult> {
     Ok(ValidateCallbackResult::Valid)
 }
 pub fn validate_delete_fixture(
     _action: Delete,
-    _original_action: EntryCreationAction,
     _original_fixture: Fixture,
 ) -> ExternResult<ValidateCallbackResult> {
     Ok(ValidateCallbackResult::Valid)
@@ -86,7 +83,6 @@ pub fn validate_create_link_all_fixtures(
     target_address: AnyLinkableHash,
     _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-    // Check the entry type for the given action hash
     let action_hash = target_address
         .into_action_hash()
         .ok_or(
@@ -104,7 +100,6 @@ pub fn validate_create_link_all_fixtures(
                 WasmErrorInner::Guest(String::from("Linked action must reference an entry"))
             ),
         )?;
-    // TODO: add the appropriate validation rules
     Ok(ValidateCallbackResult::Valid)
 }
 pub fn validate_delete_link_all_fixtures(
@@ -114,6 +109,5 @@ pub fn validate_delete_link_all_fixtures(
     _target: AnyLinkableHash,
     _tag: LinkTag,
 ) -> ExternResult<ValidateCallbackResult> {
-    // TODO: add the appropriate validation rules
     Ok(ValidateCallbackResult::Valid)
 }

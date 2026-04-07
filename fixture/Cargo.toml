@@ -5,12 +5,14 @@ opt-level = "z"
 opt-level = "z"
 
 [workspace]
+resolver = "2"
 members = ["dnas/*/zomes/coordinator/*", "dnas/*/zomes/integrity/*"]
 
 [workspace.dependencies]
 hdi = "=0.7.0"
 hdk = "=0.6.0"
 serde = { version = "1", features = ["derive"] }
+holochain_serialized_bytes = "=0.0.56"
 
 [workspace.dependencies.fixture]
 path = "dnas/fixture/zomes/coordinator/fixture"

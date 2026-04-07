@@ -23,9 +23,8 @@ pub fn get_latest_fixture(
     original_fixture_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
     let links = get_links(
-        original_fixture_hash.clone(),
-        LinkTypes::FixtureUpdates,
-        None,
+        LinkQuery::try_new(original_fixture_hash.clone(), LinkTypes::FixtureUpdates)?,
+        GetStrategy::Network,
     )?;
     let latest_link = links
         .into_iter()
@@ -72,9 +71,8 @@ pub fn get_all_revisions_for_fixture(
         return Ok(vec![]);
     };
     let links = get_links(
-        original_fixture_hash.clone(),
-        LinkTypes::FixtureUpdates,
-        None,
+        LinkQuery::try_new(original_fixture_hash.clone(), LinkTypes::FixtureUpdates)?,
+        GetStrategy::Network,
     )?;
     let get_input: Vec<GetInput> = links
         .into_iter()
@@ -129,7 +127,7 @@ pub fn delete_fixture(original_fixture_hash: ActionHash) -> ExternResult<ActionH
     let details = get_details(original_fixture_hash.clone(), GetOptions::default())?
         .ok_or(
             wasm_error!(
-                WasmErrorInner::Guest(String::from("{pascal_entry_def_name} not found"))
+                WasmErrorInner::Guest(String::from("Fixture not found"))
             ),
         )?;
     match details {
@@ -143,11 +141,14 @@ pub fn delete_fixture(original_fixture_hash: ActionHash) -> ExternResult<ActionH
         }
     }?;
     let path = Path::from("all_fixtures");
-    let links = get_links(path.path_entry_hash()?, LinkTypes::AllFixtures, None)?;
+    let links = get_links(
+        LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllFixtures)?,
+        GetStrategy::Network,
+    )?;
     for link in links {
         if let Some(hash) = link.target.into_action_hash() {
             if hash.eq(&original_fixture_hash) {
-                delete_link(link.create_link_hash)?;
+                delete_link(link.create_link_hash, GetOptions::default())?;
             }
         }
     }
