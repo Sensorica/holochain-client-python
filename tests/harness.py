@@ -59,7 +59,7 @@ def _write_conductor_config(config_path: Path, data_dir: Path, admin_port: int) 
 ---
 data_root_path: {data_dir}
 keystore:
-  type: lair_server_in_proc
+  type: danger_test_keystore
 admin_interfaces:
   - driver:
       type: websocket
@@ -128,15 +128,10 @@ class HolochainHarness:
         env = {**os.environ, "RUST_LOG": os.environ.get("RUST_LOG", "warn")}
         self._holochain_proc = subprocess.Popen(
             ["holochain", "--config-path", str(config_path)],
-            stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             env=env,
         )
-        # Send empty passphrase (newline) to unlock the keystore
-        if self._holochain_proc.stdin:
-            self._holochain_proc.stdin.write(b"\n")
-            self._holochain_proc.stdin.flush()
 
         # 3. Wait for admin port to become reachable
         await self._wait_for_port(self.admin_port)
