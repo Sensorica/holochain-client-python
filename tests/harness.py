@@ -123,13 +123,20 @@ class HolochainHarness:
         _write_conductor_config(config_path, data_dir, self.admin_port)
 
         # 2. Start holochain
+        # lair_server_in_proc prompts for a passphrase on stdin.
+        # For automated tests we send an empty passphrase immediately.
         env = {**os.environ, "RUST_LOG": os.environ.get("RUST_LOG", "warn")}
         self._holochain_proc = subprocess.Popen(
             ["holochain", "--config-path", str(config_path)],
+            stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             env=env,
         )
+        # Send empty passphrase (newline) to unlock the keystore
+        if self._holochain_proc.stdin:
+            self._holochain_proc.stdin.write(b"\n")
+            self._holochain_proc.stdin.flush()
 
         # 3. Wait for admin port to become reachable
         await self._wait_for_port(self.admin_port)
