@@ -60,7 +60,13 @@ class WsClient:
 
     @classmethod
     async def connect(cls, url: str, **kwargs: Any) -> WsClient:
-        """Open a websocket connection to the conductor."""
+        """Open a websocket connection to the conductor.
+
+        Holochain 0.6+ requires an Origin header on every WebSocket
+        handshake. The websockets library does not send one by default,
+        so we inject "localhost" unless the caller overrides it.
+        """
+        kwargs.setdefault("origin", "localhost")
         ws = await websockets.connect(url, **kwargs)
         client = cls(ws, url=url)
         client._listen_task = asyncio.create_task(client._listen())
