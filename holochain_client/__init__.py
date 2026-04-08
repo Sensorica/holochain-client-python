@@ -57,10 +57,12 @@ from holochain_client.utils.hash import (
 from holochain_client.utils.hashmap import HoloHashMap, DnaHashMap
 from holochain_client.api.client import HolochainError, WsClient
 from holochain_client.api.admin.websocket import AdminWebsocket
+from holochain_client.api.app.websocket import AppWebsocket
 
 __all__ = [
     # Clients
     "AdminWebsocket",
+    "AppWebsocket",
     "WsClient",
     "HolochainError",
     # Types
