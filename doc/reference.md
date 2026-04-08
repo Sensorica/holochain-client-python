@@ -1,37 +1,42 @@
-# Documentation
+# Reference
 
-https://developer.holochain.org/concepts/2_application_architecture/
+## Official Documentation
 
-# working project
+- [Holochain Application Architecture](https://developer.holochain.org/concepts/2_application_architecture/)
 
-https://github.com/holochain/holochain-client-js
-https://github.com/holochain/holochain-client-rust
-https://github.com/holochain/holochain/tree/develop/crates/client
+## Reference Implementations
 
-# Agent skill
+- [holochain-client-js](https://github.com/holochain/holochain-client-js) — canonical JS client
+- [holochain-client-rust](https://github.com/holochain/holochain-client-rust) — standalone Rust client (crates.io)
+- [holochain monorepo client crate](https://github.com/holochain/holochain/tree/develop/crates/client) — source used for the Rust wrapper in this repo
 
-https://github.com/Soushi888/holochain-agent-skill
+## Related Projects
 
-# Guide to start wrapper
+- [holochain-agent-skill](https://github.com/Soushi888/holochain-agent-skill) — AI agent skill for Holochain
 
-I already figured out a reasonable way to call Rust from Python here https://github.com/holochain/holochain-serialization-python/blob/main/src/lib.rs and here https://github.com/holochain/holochain-serialization-python/blob/main/test.py. As far as I know that code still works.
+## PyO3/Maturin Wrapper Notes
 
-You can find the code for the Holochain Rust client here https://github.com/holochain/holochain/tree/develop/crates/client.
+### Starting point
 
-The only thing I can think of that we'd want to be careful about is not forcing everyone who uses the client to build Rust bindings. So the dependency on py03 would need to be optional and rather than using ⁨#[pyclass]⁩ directly for example, it would need to be ⁨#[cfg_attr(feature = "python-bindings", pyclass)]⁩
+The approach for calling Rust from Python was modelled after
+[holochain-serialization-python](https://github.com/holochain/holochain-serialization-python):
+- [`src/lib.rs`](https://github.com/holochain/holochain-serialization-python/blob/main/src/lib.rs)
+- [`test.py`](https://github.com/holochain/holochain-serialization-python/blob/main/test.py)
 
-# Guide binding python with rust client
+### Optional bindings pattern
 
-PyO3 bindings over the Rust client
+To avoid forcing all users to build Rust bindings, the `pyo3` dependency is optional
+and all PyO3 attributes use `cfg_attr` instead of direct annotation:
 
-Since holochain_client (Rust) is the canonical implementation, wrapping it with PyO3/Maturin would give you a Python client that stays in sync automatically. This is architecturally elegant and fits your compiled stack philosophy. The tradeoff: harder to debug, heavier build dependency (needs Rust toolchain).
+```rust
+// Instead of #[pyclass]:
+#[cfg_attr(feature = "python-bindings", pyclass)]
+pub struct AdminWebsocketPy { ... }
+```
 
-Wrap the project https://github.com/holochain/holochain/tree/develop/crates/client
+This allows the crate to compile without `python-bindings` as a pure Rust library.
 
-# Goal
+### See also
 
-Support Holochain 0.6 and 0.7
-
-# Plan
-
-See [plan.md](plan.md) for the detailed migration and wrapper implementation plan.
+- [doc/plan.md](plan.md) — migration and implementation plan
+- `src/lib.rs` — full wrapper source
