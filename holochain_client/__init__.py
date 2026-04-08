@@ -58,6 +58,19 @@ from holochain_client.utils.hashmap import HoloHashMap, DnaHashMap
 from holochain_client.api.client import HolochainError, WsClient
 from holochain_client.api.admin.websocket import AdminWebsocket
 from holochain_client.api.app.websocket import AppWebsocket
+from holochain_client.api.signing import (
+    SigningCredentials,
+    generate_signing_key_pair,
+    get_signing_credentials,
+    set_signing_credentials,
+    random_cap_secret,
+    random_nonce,
+    sign_zome_call,
+)
+from holochain_client.environments.launcher import (
+    get_launcher_environment,
+    LauncherEnvironment,
+)
 
 __all__ = [
     # Clients
@@ -65,6 +78,17 @@ __all__ = [
     "AppWebsocket",
     "WsClient",
     "HolochainError",
+    # Signing
+    "SigningCredentials",
+    "generate_signing_key_pair",
+    "get_signing_credentials",
+    "set_signing_credentials",
+    "random_cap_secret",
+    "random_nonce",
+    "sign_zome_call",
+    # Environments
+    "get_launcher_environment",
+    "LauncherEnvironment",
     # Types
     "AgentPubKey",
     "ActionHash",
