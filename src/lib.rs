@@ -253,6 +253,56 @@ impl AdminWebsocketPy {
         Ok(dnas.into_iter().map(|h| h.get_raw_39().to_vec()).collect())
     }
 
+    /// List app interfaces.
+    /// Returns JSON-serialised `Vec<AppInterfaceInfo>`.
+    fn list_app_interfaces(&self) -> PyResult<String> {
+        let ifaces = self
+            .rt
+            .block_on(self.inner.list_app_interfaces())
+            .map_err(py_err)?;
+        serde_json::to_string(&ifaces).map_err(py_err)
+    }
+
+    /// Get storage usage information.
+    /// Returns JSON-serialised `StorageInfo`.
+    fn storage_info(&self) -> PyResult<String> {
+        let info = self
+            .rt
+            .block_on(self.inner.storage_info())
+            .map_err(py_err)?;
+        serde_json::to_string(&info).map_err(py_err)
+    }
+
+    /// Dump network statistics.
+    /// Returns JSON string.
+    fn dump_network_stats(&self) -> PyResult<String> {
+        let stats = self
+            .rt
+            .block_on(self.inner.dump_network_stats())
+            .map_err(py_err)?;
+        serde_json::to_string(&stats).map_err(py_err)
+    }
+
+    /// Get agent info records.
+    ///
+    /// `dna_hashes` — optional list of raw 39-byte DNA hashes to filter by.
+    /// Returns a list of opaque agent info strings.
+    fn agent_info(&self, dna_hashes: Option<Vec<Vec<u8>>>) -> PyResult<Vec<String>> {
+        let hashes = dna_hashes
+            .map(|hs| hs.into_iter().map(bytes_to_dna).collect::<PyResult<Vec<_>>>())
+            .transpose()?;
+        self.rt
+            .block_on(self.inner.agent_info(hashes))
+            .map_err(py_err)
+    }
+
+    /// Add agent info records.
+    fn add_agent_info(&self, agent_infos: Vec<String>) -> PyResult<()> {
+        self.rt
+            .block_on(self.inner.add_agent_info(agent_infos))
+            .map_err(py_err)
+    }
+
     // ------------------------------------------------------------------
     // Interface management
     // ------------------------------------------------------------------

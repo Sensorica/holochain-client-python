@@ -11,8 +11,11 @@ Usage::
     ...
 """
 
-from holochain_client.api.admin.websocket import AdminWebsocket
-from holochain_client.api.app.websocket import AppWebsocket
+try:
+    from holochain_client._rust_adapter import AdminWebsocket, AppWebsocket
+except ImportError:
+    from holochain_client.api.admin.websocket import AdminWebsocket  # type: ignore[assignment]
+    from holochain_client.api.app.websocket import AppWebsocket  # type: ignore[assignment]
 from holochain_client.api.client import HolochainError, WsClient
 from holochain_client.api.signing import (
     SigningCredentials,
