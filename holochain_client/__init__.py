@@ -55,8 +55,14 @@ from holochain_client.utils.hash import (
     fake_action_hash,
 )
 from holochain_client.utils.hashmap import HoloHashMap, DnaHashMap
+from holochain_client.api.client import HolochainError, WsClient
+from holochain_client.api.admin.websocket import AdminWebsocket
 
 __all__ = [
+    # Clients
+    "AdminWebsocket",
+    "WsClient",
+    "HolochainError",
     # Types
     "AgentPubKey",
     "ActionHash",
