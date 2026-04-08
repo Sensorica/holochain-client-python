@@ -68,7 +68,7 @@ admin_interfaces:
   - driver:
       type: websocket
       port: {admin_port}
-      allowed_origins: any
+      allowed_origins: localhost
 """
     )
 
