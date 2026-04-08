@@ -34,16 +34,15 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+# Rust toolchain required — must run inside `nix develop`.
+# holochain_client / holo_hash deps are path-pinned to the nix store until
+# compatible versions are published on crates.io.
+requires = ["maturin>=1.4,<2.0"]
+build-backend = "maturin"
 
-[tool.hatch.build.targets.wheel]
-packages = ["holochain_client"]
-
-# The Rust extension (holochain_client_rs) is built separately:
-#   uv run maturin develop --features python-bindings
-# maturin requires a Python package named after the Rust module to use it as
-# build backend; restructuring for that is Phase 2.5.
+[tool.maturin]
+features = ["python-bindings"]
+python-source = "."
 
 [tool.ruff]
 target-version = "py310"
@@ -58,6 +57,7 @@ strict = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
