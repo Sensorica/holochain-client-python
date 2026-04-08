@@ -1,109 +1,126 @@
-"""Integration tests for AdminWebsocket and AppWebsocket.
+"""Integration tests using a real Holochain conductor.
 
-These tests require a running Holochain conductor. They are skipped by default
-and can be enabled by setting the HOLOCHAIN_TEST_ADMIN_URL environment variable.
+Requires ``holochain`` and ``hc`` on PATH (run inside ``nix develop``).
+The fixture happ must be built first: ``cd fixture && npm run build:happ``.
 
-Usage:
-    # Start conductor, then:
-    HOLOCHAIN_TEST_ADMIN_URL=ws://127.0.0.1:65000 pytest tests/test_integration.py -v
+Run all integration tests:
+    uv run pytest tests/test_integration.py -s -v
+
+Run with Rust conductor logs:
+    RUST_LOG=info uv run pytest tests/test_integration.py -s -v
 """
 
-import os
+from __future__ import annotations
+
+import shutil
+
 import pytest
 
-ADMIN_URL = os.environ.get("HOLOCHAIN_TEST_ADMIN_URL")
-HAPP_PATH = os.environ.get("HOLOCHAIN_TEST_HAPP_PATH", "./fixture/workdir/test.happ")
+from tests.harness import FIXTURE_HAPP, HolochainHarness
 
+# Skip entire module when holochain is not on PATH
 pytestmark = pytest.mark.skipif(
-    ADMIN_URL is None,
-    reason="HOLOCHAIN_TEST_ADMIN_URL not set; skipping integration tests",
+    shutil.which("holochain") is None,
+    reason="holochain binary not found on PATH; run inside nix develop",
 )
 
 
+# ---------------------------------------------------------------------------
+# Shared fixture
+# ---------------------------------------------------------------------------
+
+
 @pytest.fixture
-async def admin_ws():
-    from holochain_client import AdminWebsocket
-    ws = await AdminWebsocket.connect(ADMIN_URL)
-    yield ws
-    await ws.close()
+async def harness():
+    """Start a full Holochain sandbox and return the harness."""
+    if not FIXTURE_HAPP.exists():
+        pytest.skip(f"Fixture happ not built: {FIXTURE_HAPP}")
+    async with HolochainHarness() as h:
+        yield h
 
 
-class TestAdminIntegration:
-    async def test_generate_agent_pub_key(self, admin_ws):
-        key = await admin_ws.generate_agent_pub_key()
+# ---------------------------------------------------------------------------
+# Admin tests
+# ---------------------------------------------------------------------------
+
+
+class TestAdmin:
+    async def test_generate_agent_pub_key(self, harness: HolochainHarness):
+        key = await harness.admin.generate_agent_pub_key()
         assert len(key) == 39
         assert key[:3] == bytes([132, 32, 36])
 
-    async def test_list_dnas_empty(self, admin_ws):
-        dnas = await admin_ws.list_dnas()
+    async def test_list_dnas(self, harness: HolochainHarness):
+        dnas = await harness.admin.list_dnas()
         assert isinstance(dnas, list)
+        assert len(dnas) >= 1  # fixture DNA is installed
 
-    async def test_list_apps_empty(self, admin_ws):
-        apps = await admin_ws.list_apps()
-        assert isinstance(apps, list)
+    async def test_list_apps(self, harness: HolochainHarness):
+        apps = await harness.admin.list_apps()
+        assert any(a.installed_app_id == harness.app_id for a in apps)
 
-    async def test_list_app_interfaces(self, admin_ws):
-        interfaces = await admin_ws.list_app_interfaces()
+    async def test_list_cell_ids(self, harness: HolochainHarness):
+        ids = await harness.admin.list_cell_ids()
+        assert isinstance(ids, list)
+        assert len(ids) >= 1
+
+    async def test_list_app_interfaces(self, harness: HolochainHarness):
+        interfaces = await harness.admin.list_app_interfaces()
         assert isinstance(interfaces, list)
+        assert len(interfaces) >= 1
 
-    async def test_dump_network_stats(self, admin_ws):
-        stats = await admin_ws.dump_network_stats()
+    async def test_storage_info(self, harness: HolochainHarness):
+        info = await harness.admin.storage_info()
+        assert isinstance(info, dict)
+
+    async def test_dump_network_stats(self, harness: HolochainHarness):
+        stats = await harness.admin.dump_network_stats()
         assert isinstance(stats, (dict, str))
 
+    async def test_agent_info(self, harness: HolochainHarness):
+        infos = await harness.admin.agent_info()
+        assert isinstance(infos, list)
 
-class TestAppIntegration:
-    """Full lifecycle: install app, connect app ws, call zome."""
 
-    async def test_full_lifecycle(self, admin_ws):
-        if not os.path.exists(HAPP_PATH):
-            pytest.skip(f"Test hApp not found at {HAPP_PATH}")
+# ---------------------------------------------------------------------------
+# App tests
+# ---------------------------------------------------------------------------
 
-        from holochain_client import AppWebsocket
 
-        # Generate agent
-        agent_key = await admin_ws.generate_agent_pub_key()
-        app_id = "test-app-python"
+class TestApp:
+    async def test_app_info(self, harness: HolochainHarness):
+        info = await harness.app.app_info()
+        assert info.installed_app_id == harness.app_id
+        assert len(harness.app.my_pub_key) == 39
 
-        # Install
-        app_info = await admin_ws.install_app({
-            "source": {"type": "path", "value": HAPP_PATH},
-            "agent_key": agent_key,
-            "installed_app_id": app_id,
-        })
-        assert app_info.installed_app_id == app_id
+    async def test_call_zome_create_fixture(self, harness: HolochainHarness):
+        result = await harness.app.call_zome(
+            cell_id=harness.cell_id,
+            zome_name="fixture",
+            fn_name="create_fixture",
+            payload={"content": "hello from python"},
+        )
+        assert result is not None
 
-        # Enable
-        await admin_ws.enable_app(app_id)
+    async def test_call_zome_get_all_fixtures(self, harness: HolochainHarness):
+        # Create one first
+        await harness.app.call_zome(
+            cell_id=harness.cell_id,
+            zome_name="fixture",
+            fn_name="create_fixture",
+            payload={"content": "test entry"},
+        )
+        links = await harness.app.call_zome(
+            cell_id=harness.cell_id,
+            zome_name="fixture",
+            fn_name="get_all_fixtures",
+            payload=None,
+        )
+        assert isinstance(links, list)
+        assert len(links) >= 1
 
-        # Authorize signing for the first cell
-        first_role = next(iter(app_info.cell_info))
-        cells = app_info.cell_info[first_role]
-        cell_id = tuple(cells[0]["value"]["cell_id"])
-        await admin_ws.authorize_signing_credentials(cell_id)
-
-        # Attach app interface
-        iface = await admin_ws.attach_app_interface(port=0, allowed_origins="*")
-        port = iface["port"]
-
-        # Issue token
-        token_resp = await admin_ws.issue_app_authentication_token(app_id)
-        token = token_resp["token"]
-
-        # Connect app ws
-        app_ws = await AppWebsocket.connect(f"ws://127.0.0.1:{port}", token)
-        assert app_ws.installed_app_id == app_id
-        assert len(app_ws.my_pub_key) == 39
-
-        # App info
-        info = await app_ws.app_info()
-        assert info.installed_app_id == app_id
-
-        # Signal subscription (just test registration, no signal emitted)
-        received = []
-        unsub = app_ws.on("signal", lambda s: received.append(s))
+    async def test_signal_subscription(self, harness: HolochainHarness):
+        received: list = []
+        unsub = harness.app.on("signal", lambda s: received.append(s))
         assert callable(unsub)
-        unsub()
-
-        # Cleanup
-        await app_ws.close()
-        await admin_ws.uninstall_app(app_id)
+        unsub()  # unsubscribe immediately — just tests the API
