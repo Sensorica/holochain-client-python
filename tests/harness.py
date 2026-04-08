@@ -53,7 +53,11 @@ def _free_port() -> int:
 
 
 def _write_conductor_config(config_path: Path, data_dir: Path, admin_port: int) -> None:
-    """Write a minimal conductor-config.yaml for holochain 0.6."""
+    """Write a minimal conductor-config.yaml for holochain 0.6.
+
+    The format is derived from what ``hc sandbox create`` generates.
+    ``danger_test_keystore`` bypasses the lair passphrase prompt.
+    """
     config_path.write_text(
         f"""\
 ---
@@ -64,7 +68,6 @@ admin_interfaces:
   - driver:
       type: websocket
       port: {admin_port}
-      allowed_origins: "*"
 """
     )
 
@@ -133,8 +136,8 @@ class HolochainHarness:
             env=env,
         )
 
-        # 3. Wait for admin port to become reachable
-        await self._wait_for_port(self.admin_port)
+        # 3. Wait for admin WebSocket to become reachable
+        await self._wait_for_websocket(f"ws://127.0.0.1:{self.admin_port}")
 
         # 4. Connect admin
         self.admin = await AdminWebsocket.connect(f"ws://127.0.0.1:{self.admin_port}")
@@ -196,13 +199,15 @@ class HolochainHarness:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def _wait_for_port(port: int, timeout: float = 30.0) -> None:
-        """Poll until the given TCP port accepts connections."""
+    async def _wait_for_websocket(url: str, timeout: float = 30.0) -> None:
+        """Poll until the WebSocket endpoint accepts connections."""
+        import websockets  # type: ignore[import-untyped]
+
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:
-                with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                async with websockets.connect(url):
                     return
-            except OSError:
-                await asyncio.sleep(0.2)
-        raise TimeoutError(f"Holochain did not start within {timeout}s (port {port})")
+            except Exception:
+                await asyncio.sleep(0.3)
+        raise TimeoutError(f"Holochain WebSocket not ready within {timeout}s ({url})")
