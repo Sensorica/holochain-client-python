@@ -140,7 +140,7 @@ impl AdminWebsocketPy {
             .trim_end_matches('/');
         let rt = tokio::runtime::Runtime::new().map_err(py_err)?;
         let inner = rt
-            .block_on(AdminWebsocket::connect(addr))
+            .block_on(AdminWebsocket::connect(addr, None))
             .map_err(py_err)?;
         Ok(Self { inner, rt })
     }
@@ -197,7 +197,7 @@ impl AdminWebsocketPy {
             .rt
             .block_on(self.inner.enable_app(installed_app_id.to_string()))
             .map_err(py_err)?;
-        serde_json::to_string(&resp.app).map_err(py_err)
+        serde_json::to_string(&resp).map_err(py_err)
     }
 
     /// Disable a running app.
@@ -277,6 +277,7 @@ impl AdminWebsocketPy {
         self.rt
             .block_on(self.inner.attach_app_interface(
                 port,
+                None,
                 origins,
                 installed_app_id.map(String::from),
             ))
@@ -390,7 +391,7 @@ impl AppWebsocketPy {
         // credentials added to `signer` after this call remain visible.
         let dyn_signer: DynAgentSigner = Arc::new(signer.inner.clone());
         let inner = rt
-            .block_on(AppWebsocket::connect(addr, token, dyn_signer))
+            .block_on(AppWebsocket::connect(addr, token, dyn_signer, None))
             .map_err(py_err)?;
         Ok(Self { inner, rt })
     }
