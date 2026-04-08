@@ -12,7 +12,7 @@ Usage as async context manager::
         )
 
 The harness:
-1. Creates an isolated sandbox directory via ``hc sandbox create``.
+1. Creates an isolated temp directory and writes a conductor-config.yaml.
 2. Launches the ``holochain`` binary on random ports.
 3. Connects ``AdminWebsocket``.
 4. Installs the fixture ``.happ`` and enables the app.
@@ -20,7 +20,7 @@ The harness:
 6. Attaches an app interface and connects ``AppWebsocket``.
 7. Tears everything down on exit.
 
-Requires ``holochain`` and ``hc`` on PATH (provided by ``nix develop``).
+Requires ``holochain`` on PATH (provided by ``nix develop``).
 The fixture happ must be pre-built: ``cd fixture && npm run build:happ``.
 """
 
@@ -31,7 +31,6 @@ import os
 import shutil
 import socket
 import subprocess
-import sys
 import tempfile
 import time
 from pathlib import Path
@@ -51,6 +50,23 @@ def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+def _write_conductor_config(config_path: Path, data_dir: Path, admin_port: int) -> None:
+    """Write a minimal conductor-config.yaml for holochain 0.6."""
+    config_path.write_text(
+        f"""\
+---
+data_root_path: {data_dir}
+keystore:
+  type: lair_server_in_proc
+admin_interfaces:
+  - driver:
+      type: websocket
+      port: {admin_port}
+      allowed_origins: "*"
+"""
+    )
 
 
 class HolochainHarness:
@@ -98,27 +114,15 @@ class HolochainHarness:
                 "Run: cd fixture && npm run build:happ"
             )
 
-        # 1. Create sandbox
+        # 1. Create sandbox directory and conductor config
         self._sandbox_dir = Path(tempfile.mkdtemp(prefix="holochain-test-"))
+        data_dir = self._sandbox_dir / "databases"
+        data_dir.mkdir()
+        config_path = self._sandbox_dir / "conductor-config.yaml"
         self.admin_port = _free_port()
-
-        subprocess.run(
-            [
-                "hc",
-                "sandbox",
-                "create",
-                "--directory",
-                str(self._sandbox_dir),
-                "--piped",
-                "-c",
-                f"admin_interfaces: [{{driver: {{type: websocket, port: {self.admin_port}}}}}]",
-            ],
-            check=True,
-            capture_output=True,
-        )
+        _write_conductor_config(config_path, data_dir, self.admin_port)
 
         # 2. Start holochain
-        config_path = self._sandbox_dir / "conductor-config.yaml"
         env = {**os.environ, "RUST_LOG": os.environ.get("RUST_LOG", "warn")}
         self._holochain_proc = subprocess.Popen(
             ["holochain", "--config-path", str(config_path)],
