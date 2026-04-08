@@ -98,7 +98,7 @@ class TestApp:
             cell_id=harness.cell_id,
             zome_name="fixture",
             fn_name="create_fixture",
-            payload={"content": "hello from python"},
+            payload={"name": "hello from python"},
         )
         assert result is not None
 
@@ -108,7 +108,7 @@ class TestApp:
             cell_id=harness.cell_id,
             zome_name="fixture",
             fn_name="create_fixture",
-            payload={"content": "test entry"},
+            payload={"name": "test entry"},
         )
         links = await harness.app.call_zome(
             cell_id=harness.cell_id,

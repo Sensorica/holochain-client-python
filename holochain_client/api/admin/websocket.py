@@ -257,10 +257,11 @@ class AdminWebsocket:
                 "tag": "zome-call-signing-key",
                 "functions": functions,
                 "access": {
-                    "Assigned": {
+                    "type": "assigned",
+                    "value": {
                         "secret": cap_secret,
                         "assignees": [signing_key],
-                    }
+                    },
                 },
             },
             timeout,
@@ -300,11 +301,11 @@ class AdminWebsocket:
 
     async def agent_info(
         self,
-        cell_id: CellId | None = None,
+        dna_hashes: list[DnaHash] | None = None,
         timeout: float | None = None,
     ) -> list[str]:
-        """Return agent info for the given cell, or all cells if None."""
-        payload = {"cell_id": list(cell_id)} if cell_id else None
+        """Return agent info for all DNAs (or a subset if dna_hashes is given)."""
+        payload = {"dna_hashes": dna_hashes}
         resp = await self._request("agent_info", payload, timeout)
         return resp["value"]
 
@@ -314,7 +315,7 @@ class AdminWebsocket:
         timeout: float | None = None,
     ) -> None:
         """Add pre-fetched agent infos to the peer store."""
-        await self._request("add_agent_info", agent_infos, timeout)
+        await self._request("add_agent_info", {"agent_infos": agent_infos}, timeout)
 
     # ------------------------------------------------------------------
     # Diagnostics

@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Awaitable
 
+import msgpack
+
 from holochain_client.api.client import WsClient, HolochainError
 from holochain_client.api.signing import sign_zome_call, get_signing_credentials
 from holochain_client.types import (
@@ -125,7 +127,10 @@ class AppWebsocket:
             {"bytes": signed.bytes, "signature": signed.signature},
             timeout,
         )
-        return resp.get("value")
+        raw = resp.get("value")
+        if isinstance(raw, bytes):
+            return msgpack.unpackb(raw, raw=False)
+        return raw
 
     async def call_zome_request(
         self,
@@ -145,7 +150,10 @@ class AppWebsocket:
             {"bytes": signed.bytes, "signature": signed.signature},
             timeout,
         )
-        return resp.get("value")
+        raw = resp.get("value")
+        if isinstance(raw, bytes):
+            return msgpack.unpackb(raw, raw=False)
+        return raw
 
     # ------------------------------------------------------------------
     # Signal handling

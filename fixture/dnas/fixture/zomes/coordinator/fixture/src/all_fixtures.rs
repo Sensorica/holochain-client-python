@@ -5,6 +5,6 @@ pub fn get_all_fixtures(_: ()) -> ExternResult<Vec<Link>> {
     let path = Path::from("all_fixtures");
     get_links(
         LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllFixtures)?,
-        GetStrategy::Network,
+        GetStrategy::Local,
     )
 }

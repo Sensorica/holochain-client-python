@@ -130,6 +130,7 @@ class AppInfo:
     status: Any = None
     agent_pub_key: AgentPubKey = b""
     manifest: Any = None
+    installed_at: Any = None
 
 
 class AppStatusFilter(str, Enum):
