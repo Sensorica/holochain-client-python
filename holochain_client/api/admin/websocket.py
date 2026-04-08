@@ -120,7 +120,8 @@ class AdminWebsocket:
         status_filter: AppStatusFilter | None = None,
         timeout: float | None = None,
     ) -> list[AppInfo]:
-        payload = {"status_filter": status_filter.value} if status_filter else None
+        # ListApps is a struct variant — always send the struct even with no filter
+        payload = {"status_filter": status_filter.value if status_filter else None}
         resp = await self._request("list_apps", payload, timeout)
         return [AppInfo(**x) for x in resp["value"]]
 
